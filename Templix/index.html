@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Templix Temporary Email</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Favicon: Using your custom PNG image -->
+    <link rel="icon" href="favicon.png" type="image/png">
+    <style>
+        /* Base styles and fonts */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(ellipse at top, #0f172a, #1e293b);
+            overflow: hidden;
+            color: #e2e8f0; /* Light text color for dark background */
+        }
+
+        /* Glassmorphism effect for main containers */
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 150, 255, 0.2);
+            border-radius: 1.5rem; /* Consistent rounded corners */
+        }
+
+        /* Animated Card effect */
+        .animated-card {
+            position: relative;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.05);
+            transition: all 0.4s ease;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .animated-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                from 0deg,
+                #00ffff,
+                #8a2be2,
+                #ff00ff,
+                #00ffff
+            );
+            animation: rotate 6s linear infinite;
+            filter: blur(40px);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: -1;
+        }
+
+        .animated-card:hover::before {
+            opacity: 0.2;
+        }
+
+        .animated-card:hover {
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Ambient Glow animation */
+        .glow-ring {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(0, 200, 255, 0.25), transparent 70%);
+            filter: blur(100px);
+            animation: float 10s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+
+        /* Delay for the second glow ring */
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, -30px); }
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Custom scrollbar for inbox and email view */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5); /* slate-400 with opacity */
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        /* Message box for copy confirmation */
+        .message-box {
+            position: fixed;
+            bottom: 20px;
+            left: 20px; /* Position to bottom-left */
+            transform: translateX(-100%); /* Start off-screen to the left */
+            opacity: 0;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out; /* Faster transition */
+            z-index: 1000;
+
+            /* Glassmorphism for popup */
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 250px;
+            color: #e2e8f0;
+        }
+        .message-box.show {
+            transform: translateX(0); /* Slide in */
+            opacity: 1;
+        }
+        .message-box.success {
+            border-left: 5px solid #4CAF50; /* Green border for success */
+        }
+        .message-box.error {
+            border-left: 5px solid #f44336; /* Red border for error */
+        }
+        .message-box .icon {
+            font-size: 1.5rem;
+            line-height: 1; /* Ensure icon is vertically centered */
+        }
+        .message-box .text {
+            font-weight: 500;
+        }
+
+        /* Button specific styles for no scale-up */
+        .no-scale-hover:hover {
+            transform: none !important; /* Override any scale transforms */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .main-panel {
+                flex-direction: column;
+                padding: 1rem;
+            }
+            .email-section {
+                flex-direction: column;
+            }
+            .inbox-pane, .email-view-pane {
+                flex-basis: auto;
+                max-width: 100%;
+                border-radius: 1.5rem;
+            }
+            .inbox-pane {
+                height: 200px; /* Fixed height for mobile inbox */
+                overflow-x: hidden; /* Prevent horizontal scroll */
+                overflow-y: auto;
+            }
+            .email-view-pane {
+                height: calc(100vh - 400px); /* Adjust height for mobile view */
+            }
+            .email-item {
+                display: block; /* Stack items vertically on mobile */
+                width: 100%;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+                border-right: none;
+            }
+            .email-item:last-child {
+                border-bottom: none;
+            }
+            .message-box {
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 15px;
+                min-width: 90%;
+            }
+            .message-box.show {
+                transform: translateX(-50%);
+            }
+        }
+    </style>
+    <style>
+    /* Block text selection */
+    body {
+      user-select: none; /* disables text selection */
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+  </style>
+</head>
+<body class="text-white font-sans relative">
+    <!-- Ambient Glow elements -->
+    <div class="glow-ring top-0 left-0"></div>
+    <div class="glow-ring bottom-0 right-0 animation-delay-2000"></div>
+
+    <!-- Main Dashboard Container -->
+    <div class="flex min-h-screen p-6 gap-6">
+        <!-- Sidebar -->
+        <div class="w-64 h-full liquid-glass rounded-2xl p-6 flex flex-col justify-between hidden md:flex">
+            <div>
+                <!-- Templix Logo (PNG Image) -->
+                <img src="logo.png" alt="Templix Logo" class="mb-10">
+                <ul class="space-y-5 text-lg">
+                    <li class="text-blue-300 font-semibold hover:text-cyan-200 transition cursor-pointer flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-inbox"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>
+                        Inbox
+                    </li>
+                    <li class="hover:text-cyan-200 transition cursor-pointer flex items-center gap-3" id="about-sidebar-link">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-info"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        About
+                    </li>
+                </ul>
+                <!-- About Section Content -->
+                <div id="about-content" class="mt-8 text-xs text-gray-400 leading-relaxed space-y-2">
+                    <p class="font-semibold text-blue-300">About Templix:</p>
+                    <p>Templix, developed from Sri Lanka, provides instant, disposable email addresses for privacy and convenience. Protect your main inbox from spam and unwanted subscriptions.</p>
+                    <p class="font-semibold text-blue-300">Disclaimer:</p>
+                    <p>This service is for temporary use only. Do not use for sensitive or critical communications. Emails are not permanently stored and may be deleted at any time.</p>
+                    <p class="font-semibold text-blue-300">Credits:</p>
+                    <p>Powered by Mail.tm API. UI/UX design and Developed by Tharuditha Dineth. Icons from Feather Icons.</p>
+                </div>
+            </div>
+            <div class="text-xs opacity-50">© <span id="current-year"></span> All Rights Reserved by Templix</div>
+        </div>
+
+        <!-- Main Content Panel -->
+        <div class="flex-1 liquid-glass rounded-2xl p-8 flex flex-col overflow-hidden">
+            <h1 class="text-4xl font-extrabold mb-8 text-cyan-200 text-center md:text-left">Temporary Email Dashboard</h1>
+
+            <!-- Email Display and Actions -->
+            <div class="animated-card mb-6 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div id="email-display" class="flex-1 text-xl font-bold text-blue-300 break-all text-center sm:text-left">
+                    Not Generated yet.
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button id="copy-email-btn"
+                        class="group relative flex items-center justify-center gap-2 bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed
+                               border border-blue-600 group-hover:border-blue-400 no-scale-hover">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-copy group-hover:text-cyan-200 transition"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        <span class="group-hover:text-cyan-200 transition">Copy Email</span>
+                    </button>
+                    <button id="get-email-btn"
+                        class="group relative flex items-center justify-center gap-2 bg-gradient-to-br from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed
+                               border border-purple-600 group-hover:border-purple-400 no-scale-hover">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus-circle group-hover:text-yellow-200 transition"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                        <span class="group-hover:text-yellow-200 transition">Generate New Email</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inbox and Email View Section -->
+            <div class="flex flex-1 gap-6 overflow-hidden flex-col md:flex-row">
+                <!-- Inbox List Pane -->
+                <div class="inbox-pane flex-basis-1/3 md:w-1/3 liquid-glass p-5 flex flex-col overflow-hidden">
+                    <div class="flex justify-between items-center mb-5">
+                        <h2 class="text-2xl font-bold text-cyan-300">Inbox</h2>
+                        <!-- Removed Refresh and Clear Inbox Buttons -->
+                    </div>
+                    <div id="inbox-list" class="flex-1 custom-scrollbar overflow-y-auto space-y-2">
+                        <p class="text-gray-400 p-2">No emails yet. Generate an email to start receiving messages.</p>
+                    </div>
+                </div>
+
+                <!-- Email Reading Pane -->
+                <div class="email-view-pane flex-basis-2/3 md:w-2/3 liquid-glass p-6 flex flex-col overflow-hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-cyan-300">Email Content</h2>
+                    <div id="email-view-content" class="flex-1 custom-scrollbar overflow-y-auto">
+                        <p class="text-gray-400">Select an email from the inbox to view its content here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Message Box for notifications -->
+    <div id="message-box" class="message-box">
+        <span class="icon"></span>
+        <span class="text"></span>
+    </div>
+
+    <script>
+        // Global variables for email and inbox management
+        let currentEmail = null;
+        let inbox = [];
+        let inboxInterval = null; // Interval ID for polling
+        let activeEmailId = null; // ID of the currently viewed email
+        const POLLING_INTERVAL = 2000; // Faster polling: 2 seconds
+
+        // DOM element references
+        const getEmailBtn = document.getElementById('get-email-btn');
+        const copyEmailBtn = document.getElementById('copy-email-btn');
+        // Removed refreshInboxBtn and clearInboxBtn references
+        const emailDisplay = document.getElementById('email-display');
+        const inboxList = document.getElementById('inbox-list');
+        const emailViewContent = document.getElementById('email-view-content');
+        const messageBox = document.getElementById('message-box');
+        const messageBoxIcon = messageBox.querySelector('.icon');
+        const messageBoxText = messageBox.querySelector('.text');
+
+        // Temp Mail API base URL
+        const API_BASE = 'https://api.mail.tm';
+
+        // Event listeners for buttons
+        getEmailBtn.onclick = createAccount;
+        copyEmailBtn.onclick = copyEmailToClipboard;
+        // Removed refreshInboxBtn.onclick and clearInboxBtn.onclick
+
+        /**
+         * Displays a temporary message box with given text and type.
+         * @param {string} message - The message to display.
+         * @param {string} type - 'success' or 'error' to determine styling.
+         */
+        function showMessageBox(message, type = 'success') {
+            messageBoxText.textContent = message;
+            messageBox.className = 'message-box show'; // Reset classes and show
+
+            // Set type-specific styling (no tick/cross mark, just border color)
+            if (type === 'success') {
+                messageBox.classList.add('success');
+                messageBoxIcon.innerHTML = ''; // No icon
+            } else {
+                messageBox.classList.add('error');
+                messageBoxIcon.innerHTML = ''; // No icon
+            }
+
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+                // Remove type classes after animation to allow for new types
+                setTimeout(() => {
+                    messageBox.classList.remove('success', 'error');
+                }, 300); // Allow transition to finish before removing classes
+            }, 2500); // Hide after 2.5 seconds
+        }
+
+        /**
+         * Copies the current email address to the clipboard.
+         */
+        function copyEmailToClipboard() {
+            if (currentEmail && currentEmail.address) {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = currentEmail.address;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                try {
+                    document.execCommand('copy');
+                    showMessageBox('Email address copied!', 'success');
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    showMessageBox('Failed to copy email. Please copy manually.', 'error');
+                } finally {
+                    document.body.removeChild(tempInput);
+                }
+            } else {
+                showMessageBox('No email address to copy.', 'error');
+            }
+        }
+
+        /**
+         * Clears the displayed inbox messages. Note: This only clears the client-side display,
+         * not the actual messages on the Mail.tm server.
+         * This function is no longer called by a button but kept for completeness if needed elsewhere.
+         */
+        function clearInbox() {
+            inbox = [];
+            activeEmailId = null;
+            inboxList.innerHTML = '<p class="text-gray-400 p-2">Inbox cleared. No messages yet.</p>';
+            emailViewContent.innerHTML = '<p class="text-gray-400">Select an email from the inbox to view its content here.</p>';
+            showMessageBox('Inbox cleared!', 'success');
+        }
+
+        /**
+         * Creates a new temporary email account and starts polling its inbox.
+         */
+        async function createAccount() {
+            // Disable buttons and show loading state
+            getEmailBtn.disabled = true;
+            copyEmailBtn.disabled = true;
+            // Removed refreshInboxBtn.disabled and clearInboxBtn.disabled
+            emailDisplay.textContent = 'Generating temporary email... Please wait.';
+            clearInterval(inboxInterval); // Stop any previous polling
+            activeEmailId = null; // Reset active email
+            inbox = []; // Clear current inbox data
+            inboxList.innerHTML = '<p class="text-gray-400 p-2">Loading inbox...</p>';
+            emailViewContent.innerHTML = '<p class="text-gray-400">Select an email from the inbox to view its content here.</p>';
+
+            try {
+                // 1. Get available domains
+                const domainsResp = await fetch(`${API_BASE}/domains`);
+                if (!domainsResp.ok) throw new Error(`Failed to fetch domains: ${domainsResp.statusText}`);
+                const domainsData = await domainsResp.json();
+                const domains = domainsData['hydra:member'];
+                if (!domains || domains.length === 0) throw new Error('No domains available from API.');
+
+                const domain = domains[Math.floor(Math.random() * domains.length)].domain;
+
+                // 2. Generate random username and password
+                const username = Math.random().toString(36).substring(2, 12); // Longer username
+                const emailAddress = `${username}@${domain}`;
+                const password = Math.random().toString(36).substring(2, 12);
+
+                // 3. Register the new account
+                const registerResp = await fetch(`${API_BASE}/accounts`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({address: emailAddress, password})
+                });
+
+                if (!registerResp.ok) {
+                    const errorData = await registerResp.json();
+                    throw new Error(`Failed to create account: ${errorData.detail || registerResp.statusText}`);
+                }
+
+                // 4. Authenticate to get a token
+                const tokenResp = await fetch(`${API_BASE}/token`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({address: emailAddress, password})
+                });
+
+                if (!tokenResp.ok) {
+                    const errorData = await tokenResp.json();
+                    throw new Error(`Failed to authenticate: ${errorData.detail || tokenResp.statusText}`);
+                }
+
+                const tokenData = await tokenResp.json();
+                const token = tokenData.token;
+
+                currentEmail = { address: emailAddress, token: token };
+                emailDisplay.textContent = emailAddress;
+                copyEmailBtn.disabled = false; // Enable copy button
+                // Removed refreshInboxBtn.disabled and clearInboxBtn.disabled
+
+                showMessageBox('Temporary email generated successfully!', 'success');
+                copyEmailToClipboard(); // Auto-copy on generation
+
+                // 5. Start polling the inbox
+                inboxInterval = setInterval(() => fetchInbox(currentEmail.token), POLLING_INTERVAL);
+                // Initial fetch immediately
+                fetchInbox(currentEmail.token);
+
+            } catch (e) {
+                console.error('Error in createAccount:', e);
+                emailDisplay.textContent = 'Error generating email. Please try again.';
+                inboxList.innerHTML = '<p class="text-red-400 p-2">Failed to load inbox.</p>';
+                emailViewContent.innerHTML = '<p class="text-red-400">Error loading email content.</p>';
+                showMessageBox(`Error: ${e.message}`, 'error');
+            } finally {
+                getEmailBtn.disabled = false; // Re-enable generate button
+            }
+        }
+
+        /**
+         * Fetches the inbox messages for the current email account.
+         * @param {string} token - The authentication token for the current account.
+         */
+        async function fetchInbox(token) {
+            if (!token) return; // Ensure token exists before fetching
+
+            try {
+                const inboxResp = await fetch(`${API_BASE}/messages`, {
+                    headers: {Authorization: `Bearer ${token}`}
+                });
+                if (!inboxResp.ok) throw new Error(`Failed to fetch inbox: ${inboxResp.statusText}`);
+
+                const inboxData = await inboxResp.json();
+                const newInbox = inboxData['hydra:member'] || [];
+
+                // Check if inbox has changed to avoid unnecessary DOM updates
+                if (JSON.stringify(inbox) === JSON.stringify(newInbox)) {
+                    return; // No new emails or changes
+                }
+
+                inbox = newInbox;
+
+                if (inbox.length === 0) {
+                    inboxList.innerHTML = '<p class="text-gray-400 p-2">No messages yet. Waiting for new emails...</p>';
+                    emailViewContent.innerHTML = '<p class="text-gray-400">Select an email from the inbox to view its content here.</p>';
+                    activeEmailId = null; // No active email if inbox is empty
+                    return;
+                }
+
+                let listHtml = '';
+                inbox.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sort by newest first
+
+                inbox.forEach(msg => {
+                    const date = new Date(msg.createdAt).toLocaleString();
+                    const activeClass = (msg.id === activeEmailId) ? 'bg-blue-700/30 border-l-4 border-blue-400' : 'hover:bg-white/10';
+                    listHtml += `
+                        <div class="email-item p-3 rounded-lg cursor-pointer transition ${activeClass}" data-id="${msg.id}">
+                            <div class="flex justify-between items-center mb-1">
+                                <div class="subject font-semibold text-base text-blue-200 truncate">${escapeHtml(msg.subject || '(No Subject)')}</div>
+                                <div class="date text-xs text-gray-400">${date}</div>
+                            </div>
+                            <div class="from text-sm text-gray-300 truncate">From: ${escapeHtml(msg.from.address)}</div>
+                        </div>
+                    `;
+                });
+                inboxList.innerHTML = listHtml;
+
+                // Add click listeners for email items
+                document.querySelectorAll('.email-item').forEach(el => {
+                    el.onclick = () => showEmail(el.dataset.id, token);
+                });
+
+                // If no email is currently selected, or the active email is no longer in the inbox,
+                // automatically select the first email.
+                if (!activeEmailId || !inbox.some(msg => msg.id === activeEmailId)) {
+                    showEmail(inbox[0].id, token);
+                }
+
+            } catch (e) {
+                console.error('Error in fetchInbox:', e);
+                inboxList.innerHTML = '<p class="text-red-400 p-2">Failed to load inbox messages.</p>';
+                showMessageBox('Failed to load inbox.', 'error');
+            }
+        }
+
+        /**
+         * Displays the content of a selected email.
+         * @param {string} id - The ID of the email to display.
+         * @param {string} token - The authentication token.
+         */
+        async function showEmail(id, token) {
+            if (!token) return;
+
+            // Highlight the selected email in the inbox list
+            document.querySelectorAll('.email-item').forEach(el => {
+                el.classList.remove('bg-blue-700/30', 'border-l-4', 'border-blue-400');
+                el.classList.add('hover:bg-white/10');
+                if (el.dataset.id === id) {
+                    el.classList.add('bg-blue-700/30', 'border-l-4', 'border-blue-400');
+                    el.classList.remove('hover:bg-white/10');
+                }
+            });
+
+            activeEmailId = id;
+            emailViewContent.innerHTML = '<p class="text-gray-400">Loading email content...</p>';
+
+            try {
+                const emailResp = await fetch(`${API_BASE}/messages/${id}`, {
+                    headers: {Authorization: `Bearer ${token}`}
+                });
+                if (!emailResp.ok) throw new Error(`Failed to fetch email content: ${emailResp.statusText}`);
+
+                const msg = await emailResp.json();
+
+                // Render HTML content if available, otherwise plain text
+                // IMPORTANT: For production, a robust HTML sanitizer (e.g., DOMPurify) should be used
+                // when injecting msg.html to prevent XSS vulnerabilities from untrusted email content.
+                const emailBody = msg.html ? msg.html : `<p>${escapeHtml(msg.text)}</p>`;
+
+                emailViewContent.innerHTML = `
+                    <h3 class="text-2xl font-bold mb-2 text-white">${escapeHtml(msg.subject || '(No Subject)')}</h3>
+                    <div class="text-sm text-gray-400 mb-4">From: <span class="font-semibold text-blue-300">${escapeHtml(msg.from.address)}</span></div>
+                    <div class="email-body text-gray-200 leading-relaxed">${emailBody}</div>
+                `;
+            } catch (e) {
+                console.error('Error in showEmail:', e);
+                emailViewContent.innerHTML = '<p class="text-red-400">Failed to load email content.</p>';
+                showMessageBox('Failed to load email content.', 'error');
+            }
+        }
+
+        /**
+         * Basic HTML escaping function to prevent XSS for text content.
+         * @param {string} text - The text to escape.
+         * @returns {string} The escaped text.
+         */
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return ''; // Handle non-string inputs
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Initial setup on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            emailDisplay.textContent = 'Not Generated yet.';
+            copyEmailBtn.disabled = true; // Disable copy button initially
+            // No refresh/clear buttons, so no need to disable them here
+            document.getElementById('current-year').textContent = new Date().getFullYear(); // Set current year
+        });
+    </script>
+    <script>
+    // Disable right click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // Disable keyboard shortcuts like Ctrl+C, Ctrl+U, Ctrl+S
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey && ["c", "u", "s", "a"].includes(e.key.toLowerCase())) || e.key === "F12") {
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>

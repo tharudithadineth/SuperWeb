@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>HexLink</title>
+  <link rel="icon" type="image/x-png" href="favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.lordicon.com/lordicon.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    html, body {
+  overflow: hidden;
+  height: 100%;
+}
+
+    body {
+      background: radial-gradient(ellipse at top, #0f172a, #1e293b);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    .modal-card {
+      width: 100%;
+      max-width: 28rem;
+      margin: 0 auto;
+      padding: 1.5rem;
+      border-radius: 1.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(30px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.05);
+      transition: all 0.4s ease;
+      box-sizing: border-box;
+    }
+    @media (max-width: 640px) {
+      .modal-card {
+        padding: 1rem;
+        border-radius: 1rem;
+      }
+    }
+    .step-hidden { display: none; }
+    .step-visible { display: block; }
+    .fade-in { animation: fadeIn 0.5s ease-in-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .file-hover:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .btn {
+      position: relative;
+      overflow: hidden;
+      padding: 0.5rem 1.25rem;
+      border-radius: 100px;
+      color: white;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.4s ease;
+      z-index: 0;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .btn::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(270deg, #06b6d4, #3b82f6, #8b5cf6);
+      background-size: 400% 400%;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      animation: gradientBG 6s ease infinite;
+      z-index: -1;
+    }
+    .btn:hover::before { opacity: 1; }
+    .btn:hover {
+      transform: scale(1.04);
+      box-shadow: 0 0 12px rgba(0, 200, 255, 0.3);
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    #dropArea.dragover {
+      border-color: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.1);
+    }
+    #dropArea.dragover span {
+      color: rgba(255, 255, 255, 0.8);
+    }
+    ::selection {
+      background: none;
+    }
+  </style>
+
+  <script>
+    document.addEventListener("contextmenu", e => e.preventDefault());
+    document.addEventListener("keydown", function (e) {
+      if (
+        (e.ctrlKey && ["c", "x", "u", "s", "p"].includes(e.key.toLowerCase())) || 
+        (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") || 
+        (e.key === "F12")
+      ) {
+        e.preventDefault();
+      }
+    });
+    document.addEventListener("dragstart", e => e.preventDefault());
+  </script>
+</head>
+<body>
+  <div class="flex flex-col items-center w-full">
+    <div class="text-center px-4 sm:px-0">
+      <p class="text-white/70 text-base sm:text-lg font-medium mb-3">Your Seamless Connection</p>
+      <h3 class="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold text-white leading-none">
+  Hex<span class="gradient-text">Link</span>
+</h3>
+    </div>
+
+    <style>
+      .gradient-text {
+        background: linear-gradient(to right, #ef4444, #f97316);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: transparent;
+      }
+    </style>
+
+    <!-- Mobile-adjusted background glows -->
+    <div class="absolute w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-cyan-400/20 blur-[100px] rounded-full top-0 left-0 -z-10"></div>
+    <div class="absolute w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] bg-purple-500/20 blur-[100px] rounded-full bottom-0 right-0 -z-10"></div>
+
+    <div class="w-full max-w-md space-y-6 mt-8 px-3 sm:px-0">
+      <div id="step1" class="modal-card step-visible mx-auto text-center">
+        <h2 class="text-lg sm:text-xl font-bold mb-4 text-white">Start Dropping</h2>
+        <input id="deviceName" placeholder="Enter your device name" class="text-white w-full p-2 sm:p-3 text-sm bg-white/5 border border-white/10 rounded-full placeholder-white/30 mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-400" />
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+          <button onclick="setMode('send')" class="btn w-full sm:w-auto">Send</button>
+          <button onclick="setMode('receive')" class="btn w-full sm:w-auto">Receive</button>
+        </div>
+      </div>
+
+      <div id="step2" class="modal-card step-hidden mx-auto text-center"></div>
+
+      <div id="step3" class="modal-card step-hidden mx-auto">
+        <h2 class="text-lg font-semibold mb-4 text-center text-white">Select File to Drop</h2>
+        <div id="dropArea" class="text-white block w-full p-4 text-center bg-white/5 border border-white/10 rounded-full cursor-pointer file-hover transition relative">
+          <span id="dropText">Click or drag a file here</span>
+          <input type="file" id="fileInput" class="absolute inset-0 opacity-0 cursor-pointer" />
+        </div>
+        <input id="fileMessage" class="text-white mt-4 w-full p-3 bg-white/5 border border-white/10 rounded-full placeholder-white/30 text-sm" placeholder="Add a note (optional)" />
+        <div id="preview" class="text-sm text-gray-300 mt-2"></div>
+        <button onclick="uploadToGoFile()" class="btn w-full mt-4 text-white">Drop</button>
+        <div id="progress" class="text-white text-sm mt-2"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAh-6yFuaZG_5EH8vA4Qt7aQZSF4P1tC18",
+      authDomain: "my-password-website.firebaseapp.com",
+      databaseURL: "https://my-password-website-default-rtdb.firebaseio.com",
+      projectId: "my-password-website",
+      storageBucket: "my-password-website.appspot.com",
+      messagingSenderId: "329473480778",
+      appId: "1:329473480778:web:47fcc8bfab71fac8deeeb3",
+      measurementId: "G-VZ3CJQXGWS"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let deviceId = '', deviceName = '', mode = '', selectedReceiver = '';
+
+    function setMode(selectedMode) {
+      deviceName = document.getElementById("deviceName").value.trim();
+      if (!deviceName) return alert("Enter a device name");
+      mode = selectedMode;
+      deviceId = Math.random().toString(36).substring(2);
+      db.ref('devices/' + deviceId).set({ name: deviceName, role: mode, timestamp: Date.now() });
+      transitionSteps("step1", "step2");
+      mode === 'send' ? listReceivers() : listenForRequests();
+      cleanOldDevices();
+    }
+
+    function listReceivers() {
+      const step2 = document.getElementById("step2");
+      step2.innerHTML = `
+        <div class="mb-4 flex flex-col items-center">
+          <lord-icon src="https://cdn.lordicon.com/yudxjmzy.json" trigger="loop" delay="2000" style="width:80px;height:80px"></lord-icon>
+          <h3 class="text-lg font-bold mb-2 text-white">Choose a Receiver</h3>
+        </div>
+        <div id="receiverList" class="space-y-2 text-white"></div>`;
+
+      db.ref("devices").on("value", snap => {
+        const list = document.getElementById("receiverList");
+        list.innerHTML = '';
+        snap.forEach(child => {
+          const dev = child.val();
+          if (dev.role === 'receive' && child.key !== deviceId) {
+            const btn = document.createElement('button');
+            btn.innerText = dev.name;
+            btn.className = "block w-full bg-white/10 hover:bg-white/20 p-2 rounded-full fade-in transition";
+            btn.onclick = () => {
+              selectedReceiver = child.key;
+              db.ref("requests/" + selectedReceiver).set({ sender: deviceName, senderId: deviceId });
+              step2.innerHTML = `<div class='flex flex-col items-center text-white'>
+                <p>Waiting for receiver to accept...</p>
+                <lord-icon
+  src="https://cdn.lordicon.com/lomfljuq.json"
+  trigger="loop"
+  delay="1500"
+  style="width:100px;height:100px"
+  colors="primary:#22c55e">
+</lord-icon>
+              </div>`;
+            };
+            list.appendChild(btn);
+          }
+        });
+      });
+
+      db.ref("responses/" + deviceId).on("value", snap => {
+        if (snap.exists() && snap.val().status === 'accepted') {
+          step2.innerHTML = `<div class='text-center text-white'>
+            <lord-icon src='https://cdn.lordicon.com/jtkfemwz.json' trigger='loop' delay='1500' colors="primary:#10b981" style='width:80px;height:80px'></lord-icon>
+            <p class='mt-2 text-green-400'>Receiver accepted! Proceeding to share...</p>
+          </div>`;
+          setTimeout(() => transitionSteps("step2", "step3"), 1500);
+        }
+      });
+    }
+
+    function listenForRequests() {
+      const step2 = document.getElementById("step2");
+      step2.innerHTML = `<div class='text-center text-white'>
+        <p>Waiting for sender...</p>
+        <lord-icon src='https://cdn.lordicon.com/wsbmifnf.json' trigger='loop' delay='2000' style='width:100px;height:100px'></lord-icon>
+      </div>`;
+
+      db.ref("requests/" + deviceId).on("value", snap => {
+        const val = snap.val();
+        if (val) {
+          step2.innerHTML = `<div class='text-white p-4 rounded-full bg-yellow-100/10'>
+            <p><strong>${val.sender}</strong> wants to send you a file.</p>
+            <button onclick="acceptRequest('${val.senderId}')" class='btn mt-3'>Accept</button>
+          </div>`;
+        }
+      });
+
+      db.ref("sharedLinks/" + deviceId).on("value", snap => {
+        const val = snap.val();
+        if (val && val.link) {
+          step2.innerHTML = `<div class='text-white p-4 rounded-full bg-green-100/10'>
+            <p><strong>From:</strong> ${val.sender}</p>
+            <p><strong>Note:</strong> ${val.message || '(No note)'}</p>
+            <p><strong>File:</strong> ${val.fileName}</p>
+            <a href="${val.link}" target="_blank" class="text-cyan-500 hover:text-cyan-600 font-semibold transition-colors duration-200">Access</a>
+          </div>`;
+        }
+      });
+    }
+
+    function acceptRequest(senderId) {
+      db.ref("responses/" + senderId).set({ status: "accepted" });
+      document.getElementById("step2").innerHTML = `
+        <div class='text-center flex flex-col items-center'>
+          <lord-icon src="https://cdn.lordicon.com/yrtftktn.json" trigger="loop" delay="2000" style="width:150px;height:150px"></lord-icon>
+          <p class='mt-2 text-green-400'>Accepted. Waiting for file...</p>
+        </div>
+      `;
+    }
+
+    function uploadToGoFile() {
+      const file = document.getElementById("fileInput").files[0];
+      const message = document.getElementById("fileMessage").value;
+      if (!file || !selectedReceiver) return alert("Choose a file and receiver first.");
+
+      document.getElementById("progress").innerText = "Sending to Receiver...";
+      const formData = new FormData();
+      formData.append("file", file);
+
+      fetch("https://store1.gofile.io/uploadFile", { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(result => {
+          if (result.status === "ok") {
+            const link = result.data.downloadPage;
+            db.ref("sharedLinks/" + selectedReceiver).set({ link, fileName: file.name, sender: deviceName, message });
+            document.getElementById("progress").innerText = "✅ Done.!";
+          } else {
+            document.getElementById("progress").innerText = "❌ Drop failed.!";
+          }
+        });
+    }
+
+    function transitionSteps(fromId, toId) {
+      document.getElementById(fromId).classList.remove("step-visible");
+      document.getElementById(fromId).classList.add("step-hidden");
+      setTimeout(() => {
+        document.getElementById(toId).classList.remove("step-hidden");
+        document.getElementById(toId).classList.add("step-visible");
+      }, 300);
+    }
+
+    function cleanOldDevices() {
+      const cutoff = Date.now() - 30 * 60 * 1000;
+      db.ref("devices").once("value", snap => {
+        snap.forEach(child => {
+          if (child.val().timestamp < cutoff) {
+            db.ref("devices/" + child.key).remove();
+          }
+        });
+      });
+    }
+
+    window.addEventListener("beforeunload", () => {
+      if (deviceId) db.ref("devices/" + deviceId).remove();
+      if (mode === 'send' && selectedReceiver) {
+        db.ref("sharedLinks/" + selectedReceiver).remove();
+        db.ref("requests/" + selectedReceiver).remove();
+      }
+    });
+
+    document.getElementById("fileInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        document.getElementById("preview").innerText = `Selected: ${file.name} (${file.type || 'unknown'})`;
+      }
+    });
+
+    const dropArea = document.getElementById("dropArea");
+const fileInput = document.getElementById("fileInput");
+
+["dragenter", "dragover"].forEach(event => {
+  dropArea.addEventListener(event, e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropArea.classList.add("dragover");
+  });
+});
+
+["dragleave", "drop"].forEach(event => {
+  dropArea.addEventListener(event, e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropArea.classList.remove("dragover");
+  });
+});
+
+dropArea.addEventListener("drop", e => {
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    fileInput.files = e.dataTransfer.files;
+    document.getElementById("preview").innerText = `Selected: ${file.name} (${file.type || 'unknown'})`;
+  }
+});
+  </script>
+<footer style="
+    position: absolute;
+    bottom: 6px;
+    max-width: 850px;
+    font-size: 0.7em;
+    opacity: 0.6;
+    text-align: center;
+    color: #aaaaaa;
+    line-height: 1.4;
+    font-family: 'Segoe UI', sans-serif;
+">
+  <p>&#169; <span id="current-year-smooth2"></span> Tharuditha Dineth. All rights reserved.</p>
+  <p>Delivering a superior and customized experience, this system operates with the core strength of the GoFiles.io API. Conceived and built using only open-source and free services, its continued functionality is intrinsically linked to the GoFiles.io API's performance. Front-end development by Tharuditha Dineth.</p>
+</footer>
+
+<script>
+  document.getElementById('current-year-smooth2').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

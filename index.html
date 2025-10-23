@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperWeb Demo</title>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+    body {
+        font-family: 'Inter', sans-serif;
+        color: #E2E8F0; /* Slate 200 */
+        cursor: none; /* Hide the default cursor */
+    }
+    /* Removed .liquid-glass-card as a separate class, its properties will be merged into .liquid-glass-btn */
+
+    .liquid-glass-btn {
+        /* Merged properties from original .liquid-glass-card for default state */
+        background-color: rgba(30, 41, 59, 0.6); /* Card background */
+        border: 1px solid rgba(255, 255, 255, 0.3); /* Card border */
+        backdrop-filter: blur(5px); /* Stronger blur for the card */
+        -webkit-backdrop-filter: blur(5px);
+        box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.4); /* Stronger shadow for the card */
+        
+        /* Existing properties for the button base */
+        transition: all 0.3s ease-in-out;
+        animation: fadeIn 1.5s ease-out; /* Use fadeIn for the whole card */
+    }
+    .liquid-glass-btn:hover {
+        transform: translateY(-8px) scale(1.02); /* Card lifts and scales */
+        box-shadow: 8px 25px 0 rgba(0, 0, 0, 0.4); /* Stronger shadow on hover */
+        background-color: rgba(45, 55, 72, 0.8); /* Slightly less transparent on hover */
+    }
+
+    /* Original animations */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes slideInUp { /* This animation is currently not used after the change */
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-pulse-slow {
+        animation: pulse-slow 3s infinite;
+    }
+    @keyframes pulse-slow {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.03);
+            opacity: 0.9;
+        }
+    }
+    .parallax-effect {
+        will-change: transform;
+    }
+    #liquid-cursor {
+        width: 32px; /* Smaller size */
+        height: 32px; /* Smaller size */
+        background-color: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(5px); /* Increased blur */
+        -webkit-backdrop-filter: blur(5px);
+        border-radius: 9999px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        pointer-events: none; /* Crucial to allow clicking elements below */
+        transform: translate(-50%, -50%); /* Center the cursor on the mouse point */
+        transition: opacity 0.3s ease-in-out;
+    }
+</style>
+<style>
+    /* Block text selection */
+    body {
+      user-select: none; /* disables text selection */
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 bg-cover bg-center h-screen flex items-center justify-center p-4"
+    style="background-image: url('https://wallpapercave.com/wp/wp12793782.jpg');">
+
+    <div id="liquid-cursor" class="opacity-0"></div>
+
+    <div class="text-center">
+        <!-- Logo/Heading with animation and parallax -->
+        <h1 id="superweb-title" class="text-6xl md:text-8xl font-bold mb-4 bg-clip-text text-transparent parallax-effect" style="background-image: linear-gradient(45deg, #FF6B6B, #F06595, #6B8EFF);">
+            SuperWeb
+        </h1>
+        <p class="text-lg md:text-xl text-gray-300 mb-12">Your gateway to powerful web projects.</p>
+
+        <!-- Container for cards/buttons -->
+        <div class="flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-8 w-full max-w-5xl">
+
+            <!-- HexLink Card/Button -->
+            <a href="HexLink/index.html" target="_blank" class="liquid-glass-btn p-8 rounded-2xl w-full md:w-1/2 flex flex-col items-center justify-center">
+                <!-- Replace with actual project image URL -->
+                <img src="HexLink/icon.png" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1E293B/ffffff?text=HexLink';" alt="HexLink Logo" class="w-24 h-24 rounded-full mb-4 object-cover border-2 border-white border-opacity-30">
+                <h2 class="text-3xl font-bold mb-2">HexLink</h2>
+                <p class="text-gray-400 text-center text-sm">Drop Sharing</p>
+                <span class="mt-4 text-blue-400 text-sm font-semibold">Visit Site &rarr;</span>
+            </a>
+
+            <!-- Templix Card/Button -->
+            <a href="Templix/index.html" target="_blank" class="liquid-glass-btn p-8 rounded-2xl w-full md:w-1/2 flex flex-col items-center justify-center">
+                <!-- Replace with actual project image URL -->
+                <img src="Templix/favicon.png" onerror="this.onerror=null; this.src='https://placehold.co/150x150/1E293B/ffffff?text=Templix';" alt="Templix Logo" class="w-24 h-24 rounded-full mb-4 object-cover border-2 border-white border-opacity-30">
+                <h2 class="text-3xl font-bold mb-2">Templix</h2>
+                <p class="text-gray-400 text-center text-sm">Temporary Email</p>
+                <span class="mt-4 text-blue-400 text-sm font-semibold">Visit Site &rarr;</span>
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        const title = document.getElementById('superweb-title');
+        const liquidCursor = document.getElementById('liquid-cursor');
+        const subtleSensitivity = 0.05;
+        const hoverSensitivity = 0.15;
+        const scaleFactor = 1.1;
+
+        let targetX = 0;
+        let targetY = 0;
+        let targetScale = 1;
+        let currentX = 0;
+        let currentY = 0;
+        let currentScale = 1;
+        let cursorX = 0;
+        let cursorY = 0;
+        const smoothing = 0.1;
+
+        document.body.addEventListener('mousemove', (e) => {
+            const isHovering = title.contains(e.target);
+
+            // Update cursor target position
+            cursorX = e.clientX;
+            cursorY = e.clientY;
+
+            if (isHovering) {
+                const rect = title.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                targetX = (e.clientX - centerX) * hoverSensitivity;
+                targetY = (e.clientY - centerY) * hoverSensitivity;
+                targetScale = scaleFactor;
+            } else {
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+                targetX = (mouseX - centerX) * subtleSensitivity;
+                targetY = (mouseY - centerY) * subtleSensitivity;
+                targetScale = 1;
+            }
+        });
+
+        document.body.addEventListener('mouseleave', () => {
+            targetX = 0;
+            targetY = 0;
+            targetScale = 1;
+            liquidCursor.style.opacity = 0;
+        });
+
+        document.body.addEventListener('mouseenter', () => {
+            liquidCursor.style.opacity = 1;
+        });
+
+        function animate() {
+            // Smoothly move the title
+            currentX += (targetX - currentX) * smoothing;
+            currentY += (targetY - currentY) * smoothing;
+            currentScale += (targetScale - currentScale) * smoothing;
+            
+            title.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
+            
+            // Smoothly move the liquid cursor
+            liquidCursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+            
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+    <footer class="absolute bottom-4 w-full text-center text-gray-500 text-sm">
+    &copy; <span id="current-year"></span> Concept SuperWeb. All rights reserved Oxtopix by Tharuditha Dineth.
+</footer>
+
+<script>
+    document.getElementById('current-year').textContent = new Date().getFullYear();
+</script>
+<script>
+    // Disable right click
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // Disable keyboard shortcuts like Ctrl+C, Ctrl+U, Ctrl+S
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey && ["c", "u", "s", "a"].includes(e.key.toLowerCase())) || e.key === "F12") {
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>
