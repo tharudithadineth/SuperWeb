@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flowline Workspace</title>
+  <style>
+    /* Reset & base */
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    :root{
+      --bg:#eef2f7;--card:#ffffff;--muted:#475569;--accent:#2563eb;--accent-600:#1d4ed8;--danger:#dc2626;--glass:rgba(255,255,255,0.75);
+      --panel:#f8fafc;--node-default:#ffffff;--node-border:rgba(15,23,42,0.06);
+      --grid-dot:rgba(16,24,40,0.07);
+      --shadow: 0 6px 20px rgba(16,24,40,0.08);
+    }
+
+    body{background:var(--bg);color:var(--muted);display:flex;align-items:stretch;min-height:100vh}
+
+    /* Layout */
+    .app{display:flex;flex:1;gap:18px;padding:20px}
+    aside{width:300px;padding:18px;background:linear-gradient(180deg,var(--card),var(--glass));border-radius:12px;box-shadow:var(--shadow)}
+    main{flex:1;padding:0;display:flex;flex-direction:column}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 6px}
+    h1{margin:0;font-size:18px;color:var(--muted)}
+
+    /* cards & small UI */
+    .card{background:var(--card);padding:12px;border-radius:10px;margin-bottom:12px;box-shadow:0 2px 6px rgba(2,6,23,0.04)}
+    .muted{color:var(--muted);font-size:13px}
+    input,textarea,select,button{font-family:inherit}
+    input[type=text],input[type=email],input[type=password],textarea,select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(2,6,23,0.06);outline:none;background:transparent}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--muted);border:1px solid rgba(2,6,23,0.06)}
+    .small{padding:6px 8px;font-size:13px}
+
+    /* Projects list */
+    .projects-list{display:flex;flex-direction:column;gap:10px}
+    .project-item{padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,var(--panel),transparent);border:1px solid rgba(2,6,23,0.04)}
+    .project-item h4{margin:0;color:var(--muted);font-size:14px}
+    .project-actions{display:flex;gap:8px}
+
+    /* Canvas area */
+    .canvas-wrap{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,transparent,rgba(2,6,23,0.015));min-height:72vh;padding:12px}
+    /* grid: more visible dots */
+    .dot-grid{
+      position:absolute;inset:0;pointer-events:none;background-image:
+        radial-gradient(circle at 1px 1px, var(--grid-dot) 1px, transparent 1px),
+        radial-gradient(circle at 8px 8px, rgba(16,24,40,0.03) 1px, transparent 1px);
+      background-size:24px 24px,24px 24px;opacity:1;mix-blend-mode:normal
+    }
+
+    .toolbar{display:flex;gap:8px}
+    .svg-lines{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+
+    /* nodes */
+    .flow-canvas{position:relative;height:100%}
+    .node{position:absolute;padding:10px 12px;border-radius:10px;background:var(--node-default);border:1px solid var(--node-border);cursor:grab;min-width:130px;box-shadow:0 4px 18px rgba(2,6,23,0.06);user-select:none;transform-origin:left top}
+    .node .title{font-weight:700;color:var(--accent-600);margin-bottom:6px}
+    .node .meta{font-size:12px;color:var(--muted);opacity:0.95}
+    .node.dragging{opacity:0.95;cursor:grabbing}
+    .node .comment-count{font-size:11px;background:rgba(0,0,0,0.05);padding:4px 6px;border-radius:999px;margin-top:8px;display:inline-block}
+
+    /* inspector panel */
+    .panel{padding:12px;width:340px;background:linear-gradient(180deg,var(--card),var(--glass));border-radius:12px;box-shadow:var(--shadow)}
+    .comments{max-height:300px;overflow:auto;margin-top:8px}
+    .comment-row{display:flex;gap:8px;align-items:flex-start;padding:8px;border-radius:8px;border:1px solid rgba(2,6,23,0.03);margin-bottom:8px;background:linear-gradient(180deg,transparent,#ffffff)}
+    .color-swatch{width:18px;height:18px;border-radius:6px;border:1px solid rgba(2,6,23,0.06);display:inline-block;vertical-align:middle}
+
+    /* modal (in-page) */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;z-index:60}
+    .modal{background:white;border-radius:10px;padding:18px;min-width:320px;max-width:760px;box-shadow:0 12px 40px rgba(2,6,23,0.3)}
+    .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+
+    /* responsive */
+    @media (max-width:1000px){aside{display:none}.panel{display:none}}
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside>
+      <div class="card" style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700">Flowline Workspace</div>
+            <div style="font-size:12px;color:var(--muted)">Manage projects & flowcharts</div>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">v1.2</div>
+        </div>
+      </div>
+
+      <div class="card" id="accountCard">
+        <div id="userInfo">Not signed in</div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="btn small" id="btnSignOut" style="display:none">Sign out</button>
+          <button class="btn ghost small" id="btnOpenAuth">Sign in / Sign up</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Projects</strong>
+          <div>
+            <button class="btn ghost small" id="btnNewProject">+ New</button>
+          </div>
+        </div>
+        <div class="projects-list" id="projectsList" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <small class="muted">Notes</small>
+        <textarea id="globalNote" rows="5" placeholder="Project or personal notes..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" id="saveNote">Save</button></div>
+      </div>
+
+      <div style="margin-top:12px;font-size:12px;color:var(--muted)">Flowline is totally open-source project structure/flowchart managing systerm. this is still running in development timeline. so try out this Demo Beta v1.2</div>
+    </aside>
+
+    <main>
+      <header>
+        <h1 id="projectTitle">Not signed in</h1>
+        <div class="toolbar">
+          <button class="btn" id="btnAddNode">Add Node</button>
+          <button class="btn ghost" id="btnConnect">Connect</button>
+          <button class="btn" id="btnSave">Save</button>
+        </div>
+      </header>
+
+      <div class="canvas-wrap card">
+        <div class="dot-grid"></div>
+        <svg class="svg-lines" id="svgLines"></svg>
+        <div class="flow-canvas" id="canvasArea"></div>
+      </div>
+    </main>
+
+    <div class="panel card" id="inspectorPanel">
+      <div style="display:flex;justify-content:space-between;align-items:center"><strong>Inspector</strong><small class="muted">Node / Project</small></div>
+      <div style="margin-top:8px">
+        <div id="inspectorContent" class="muted">Select a node or project to see details</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-page auth/modal area -->
+  <div id="authRoot" class="modal-backdrop">
+    <div class="modal card">
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px">
+        <button id="showSignIn" class="btn ghost small">Sign In</button>
+        <button id="showSignUp" class="btn ghost small">Sign Up</button>
+      </div>
+
+      <div id="signInForm">
+        <label>Email</label>
+        <input id="siEmail" type="email" placeholder="you@example.com" />
+        <label>Password</label>
+        <input id="siPassword" type="password" />
+        <div class="actions">
+          <button class="btn" id="btnSignInLocal">Sign In</button>
+        </div>
+      </div>
+
+      <div id="signUpForm" style="display:none;margin-top:10px">
+        <label>Name</label>
+        <input id="suName" type="text" />
+        <label>Email</label>
+        <input id="suEmail" type="email" />
+        <label>Password</label>
+        <input id="suPassword" type="password" />
+        <div class="actions">
+          <button class="btn" id="btnSignUpLocal">Create account</button>
+        </div>
+      </div>
+
+      <div id="authMsg" style="margin-top:12px;color:var(--danger)"></div>
+    </div>
+  </div>
+
+  <!-- Generic modal for prompts/confirmations/alerts -->
+  <div id="uiModal" class="modal-backdrop">
+    <div class="modal" id="uiModalInner">
+      <div id="uiModalBody"></div>
+      <div class="actions" id="uiModalActions"></div>
+    </div>
+  </div>
+
+  <script type="module">
+  // ---------- FIREBASE CONFIG (from user) ----------
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+  import { getDatabase, ref, push, set, get, child, onValue, update, remove } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBzpBz5NgN9L65ydYS4NdDLl7WnM6M4pEM",
+    authDomain: "lms-test-5737e.firebaseapp.com",
+    projectId: "lms-test-5737e",
+    storageBucket: "lms-test-5737e.appspot.com",
+    messagingSenderId: "275203876276",
+    appId: "1:275203876276:web:a904a9a503db3755c2fee1",
+    measurementId: "G-XC937CBPC1",
+    databaseURL: "https://lms-test-5737e-default-rtdb.firebaseio.com",
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // ---------- Utilities ----------
+  function el(q){return document.querySelector(q)}
+  function create(tag, cls){const e=document.createElement(tag); if(cls) e.className = cls; return e}
+
+  async function sha256(text){
+    const enc = new TextEncoder();
+    const data = enc.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  // ---------- Simple local auth (no Firebase Auth) ----------
+  let currentUser = null; // { uid, name, email }
+
+  const authRoot = el('#authRoot');
+  const showSignIn = el('#showSignIn');
+  const showSignUp = el('#showSignUp');
+  const signInForm = el('#signInForm');
+  const signUpForm = el('#signUpForm');
+  const authMsg = el('#authMsg');
+
+  showSignIn.onclick = ()=>{signInForm.style.display='block'; signUpForm.style.display='none';}
+  showSignUp.onclick = ()=>{signInForm.style.display='none'; signUpForm.style.display='block';}
+
+  el('#btnSignUpLocal').addEventListener('click', async ()=>{
+    authMsg.textContent='';
+    const name = el('#suName').value.trim();
+    const email = el('#suEmail').value.trim().toLowerCase();
+    const pass = el('#suPassword').value;
+    if(!name || !email || !pass){ authMsg.textContent='Please fill all fields'; return }
+
+    // check email uniqueness
+    const usersSnap = await get(child(ref(db), 'users'))
+    const usersObj = usersSnap.exists() ? usersSnap.val() : {};
+    const exists = Object.values(usersObj).some(u=>u.email === email);
+    if(exists){ authMsg.textContent='Email already registered'; return }
+
+    const passwordHash = await sha256(pass);
+    const newUserRef = push(ref(db, 'users'));
+    const uid = newUserRef.key;
+    const userRow = {
+      uid,
+      name,
+      email,
+      passwordHash,
+      createdAt: Date.now(),
+      theme: 'light',
+      projects: {}
+    };
+    await set(newUserRef, userRow);
+    // auto sign in
+    await localSignIn(email, pass);
+  });
+
+  async function localSignIn(email, pass){
+    authMsg.textContent='';
+    const usersSnap = await get(child(ref(db), 'users'))
+    const usersObj = usersSnap.exists() ? usersSnap.val() : {};
+    const passwordHash = await sha256(pass);
+    const entry = Object.values(usersObj).find(u=>u.email === email && u.passwordHash === passwordHash);
+    if(!entry){ authMsg.textContent='Invalid email/password'; return }
+    currentUser = { uid: entry.uid, name: entry.name, email: entry.email };
+    // hide auth
+    hideModal('authRoot');
+    el('#userInfo').innerHTML = `<div style="font-weight:600">${entry.name}</div><div style="font-size:12px;color:var(--muted)">${entry.email}</div>`;
+    el('#btnSignOut').style.display='inline-flex';
+    el('#btnOpenAuth').style.display='none';
+    loadUserData();
+  }
+
+  el('#btnSignInLocal').addEventListener('click', async ()=>{
+    await localSignIn(el('#siEmail').value.trim().toLowerCase(), el('#siPassword').value);
+  });
+
+  el('#btnOpenAuth').addEventListener('click', ()=>showModal('authRoot'));
+
+  el('#btnSignOut').addEventListener('click', ()=>{
+    currentUser = null;
+    showModal('authRoot');
+    el('#userInfo').textContent = 'Not signed in';
+    el('#btnSignOut').style.display='none';
+    el('#btnOpenAuth').style.display='inline-flex';
+    resetUI();
+  });
+
+  // modal helper functions
+  function showModal(id){ el('#' + id).style.display = 'flex' }
+  function hideModal(id){ el('#' + id).style.display = 'none' }
+
+  // UI modal for alerts/prompts/confirmations
+  function uiAlert(message){
+    return new Promise(resolve=>{
+      const body = el('#uiModalBody'); const actions = el('#uiModalActions');
+      body.innerHTML = `<div style="font-size:15px;color:var(--muted)">${message}</div>`;
+      actions.innerHTML = '';
+      const ok = create('button'); ok.className='btn'; ok.textContent='OK'; ok.onclick = ()=>{ hideModal('uiModal'); resolve(true); };
+      actions.appendChild(ok);
+      showModal('uiModal');
+    })
+  }
+
+  function uiConfirm(message){
+    return new Promise(resolve=>{
+      const body = el('#uiModalBody'); const actions = el('#uiModalActions');
+      body.innerHTML = `<div style="font-size:15px;color:var(--muted)">${message}</div>`;
+      actions.innerHTML = '';
+      const cancel = create('button'); cancel.className='btn ghost'; cancel.textContent='Cancel'; cancel.onclick = ()=>{ hideModal('uiModal'); resolve(false); };
+      const ok = create('button'); ok.className='btn'; ok.textContent='Yes'; ok.onclick = ()=>{ hideModal('uiModal'); resolve(true); };
+      actions.appendChild(cancel); actions.appendChild(ok);
+      showModal('uiModal');
+    })
+  }
+
+  function uiPrompt(label, initial=''){
+    return new Promise(resolve=>{
+      const body = el('#uiModalBody'); const actions = el('#uiModalActions');
+      body.innerHTML = `<div style="font-size:13px;color:var(--muted);margin-bottom:8px">${label}</div><input id="__uiprompt" type="text" value="${initial}" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(2,6,23,0.06)"/>`;
+      actions.innerHTML = '';
+      const cancel = create('button'); cancel.className='btn ghost'; cancel.textContent='Cancel'; cancel.onclick = ()=>{ hideModal('uiModal'); resolve(null); };
+      const ok = create('button'); ok.className='btn'; ok.textContent='Save'; ok.onclick = ()=>{ const v = el('#__uiprompt').value; hideModal('uiModal'); resolve(v); };
+      actions.appendChild(cancel); actions.appendChild(ok);
+      showModal('uiModal');
+    })
+  }
+
+  // ---------- Project & DB bindings ----------
+  let localState = { projects: {}, selectedProjectId: null, selectedNodeId: null, isConnecting:false, connectFrom:null };
+
+  function resetUI(){
+    el('#projectsList').innerHTML='';
+    el('#projectTitle').textContent='Not signed in';
+    el('#canvasArea').innerHTML='';
+    el('#svgLines').innerHTML='';
+    el('#inspectorContent').textContent='Select a node or project to see details';
+  }
+
+  async function loadUserData(){
+    const userRef = ref(db, `users/${currentUser.uid}`);
+    onValue(userRef, snapshot=>{
+      const data = snapshot.exists() ? snapshot.val() : null;
+      if(!data) return;
+      localState.projects = data.projects || {};
+      renderProjectsList();
+      // open first project if none selected
+      const first = Object.keys(localState.projects)[0];
+      if(first && !localState.selectedProjectId) openProject(first);
+    });
+  }
+
+  function renderProjectsList(){
+    const list = el('#projectsList'); list.innerHTML='';
+    for(const pid of Object.keys(localState.projects)){
+      const p = localState.projects[pid];
+      const it = create('div','project-item');
+      it.innerHTML = `<div style="max-width:180px"><h4>${p.title||'Untitled'}</h4><div style="font-size:12px;color:var(--muted);margin-top:6px">${p.updatedAt?new Date(p.updatedAt).toLocaleString():''}</div></div>`;
+      const actions = create('div','project-actions');
+      const openBtn = create('button'); openBtn.className='btn ghost small'; openBtn.textContent='Open'; openBtn.onclick = ()=>openProject(pid);
+      const delBtn = create('button'); delBtn.className='btn ghost small'; delBtn.textContent='Delete'; delBtn.onclick = async ()=>{ if(await uiConfirm('Delete project?')){ await remove(ref(db, `users/${currentUser.uid}/projects/${pid}`)); localState.selectedProjectId = null; resetCanvas(); }}
+      actions.appendChild(openBtn); actions.appendChild(delBtn);
+      it.appendChild(actions);
+      list.appendChild(it);
+    }
+  }
+
+  el('#btnNewProject').addEventListener('click', async ()=>{
+    if(!currentUser) return uiAlert('Please sign in');
+    const title = await uiPrompt('Project title', `Project ${Object.keys(localState.projects||{}).length + 1}`);
+    if(title==null) return;
+    const newRef = push(ref(db, `users/${currentUser.uid}/projects`));
+    const id = newRef.key;
+    const proj = {
+      id,
+      title: title || `Project ${Object.keys(localState.projects||{}).length + 1}`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      notes: '',
+      tags: [],
+      flow: { nodes:{}, connections:{} },
+    };
+    await set(newRef, proj);
+  });
+
+  function openProject(pid){
+    localState.selectedProjectId = pid;
+    const p = localState.projects[pid];
+    if(!p) return; // safety
+    el('#projectTitle').textContent = p.title || 'Untitled';
+    el('#globalNote').value = p.notes || '';
+    renderCanvasFromProject(p);
+    renderInspector();
+    watchSelectedProject();
+  }
+
+  el('#saveNote').addEventListener('click', async ()=>{
+    if(!currentUser || !localState.selectedProjectId) return;
+    const notes = el('#globalNote').value;
+    await update(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}`), { notes, updatedAt: Date.now() });
+    uiAlert('Note saved');
+  });
+
+  // ---------- Flowchart editor implementation ----------
+  const canvasArea = el('#canvasArea');
+  const svgLines = el('#svgLines');
+  const canvasWrap = el('.canvas-wrap');
+
+  // --- Make the work area widely movable by enabling scrollable large workspace ---
+  (function expandWorkspace(){
+    // allow scrolling of canvas-wrap and make canvasArea large so nodes can be freely moved
+    canvasWrap.style.overflow = 'auto';
+    // set a generous workspace size; this doesn't remove existing absolute coords.
+    // Users can still pan by scrolling; this increases the available placement area.
+    canvasArea.style.minWidth = '2400px';
+    canvasArea.style.minHeight = '1600px';
+    // Slightly increase grid density for larger workspace
+    const dotGrid = el('.dot-grid');
+    if(dotGrid) dotGrid.style.backgroundSize = '28px 28px,28px 28px';
+  })();
+
+  // --- Add toolbar button to hide/show side panels and maximize canvas ---
+  (function addPanelToggleButton(){
+    const toolbar = el('.toolbar');
+    if(!toolbar) return;
+    const btnToggle = create('button'); btnToggle.className='btn ghost'; btnToggle.id='btnTogglePanels'; btnToggle.textContent='Toggle Panels';
+    toolbar.appendChild(btnToggle);
+    const leftAside = document.querySelector('aside');
+    const inspector = el('#inspectorPanel');
+    let panelsHidden = false;
+    btnToggle.addEventListener('click', ()=>{
+      panelsHidden = !panelsHidden;
+      if(leftAside) leftAside.style.display = panelsHidden ? 'none' : '';
+      if(inspector) inspector.style.display = panelsHidden ? 'none' : '';
+      // expand/reduce canvas-wrap to take space (flex layout handles sizing).
+      // also toggle a class for visual adjustment if needed
+      canvasWrap.style.flex = panelsHidden ? '1 1 100%' : '';
+      // trigger redraw in case sizes changed
+      setTimeout(()=>{ redrawEverything(); }, 120);
+    });
+  })();
+
+  // ---------- Node rendering / manipulation ----------
+  function renderCanvasFromProject(proj){
+    canvasArea.innerHTML=''; svgLines.innerHTML='';
+    const nodes = proj.flow?.nodes || {};
+    const connections = proj.flow?.connections || {};
+    for(const nid of Object.keys(nodes)){
+      const n = nodes[nid];
+      createNodeElement(n);
+    }
+    for(const cid of Object.keys(connections)){
+      drawConnection(connections[cid]);
+    }
+  }
+
+  function createNodeElement(node){
+    // nodeEl now includes small inline controls for rename & delete
+    const nodeEl = create('div','node');
+    nodeEl.dataset.id = node.id;
+    nodeEl.style.left = (node.x||50) + 'px';
+    nodeEl.style.top = (node.y||50) + 'px';
+    nodeEl.style.background = node.color || 'var(--node-default)';
+    nodeEl.style.borderColor = node.color ? 'rgba(0,0,0,0.06)' : 'var(--node-border)';
+
+    // preserve existing inner layout but add a controls container
+    nodeEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div class="title">${node.title || 'Node'}</div>
+          <div class="meta">${node.text||''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-left:8px">
+          <button class="small btn ghost node-edit" title="Edit node" style="padding:4px 6px">✎</button>
+          <button class="small btn ghost node-delete" title="Delete node" style="padding:4px 6px">🗑</button>
+        </div>
+      </div>
+      <div class="comment-count">Comments: ${node.comments ? Object.keys(node.comments).length : 0}</div>
+    `;
+    canvasArea.appendChild(nodeEl);
+
+    // double-click title to quickly rename
+    const titleEl = nodeEl.querySelector('.title');
+    titleEl.addEventListener('dblclick', async (e)=>{
+      e.stopPropagation();
+      const newTitle = await uiPrompt('Rename node', titleEl.textContent || '');
+      if(newTitle == null) return;
+      await update(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${node.id}`), { title: newTitle, updatedAt: Date.now() });
+    });
+
+    // inline edit button: opens the inspector modal-like prompt to edit title/text/color
+    nodeEl.querySelector('.node-edit').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const nodeData = localState.projects[localState.selectedProjectId].flow.nodes[node.id];
+      if(!nodeData) return;
+      const newTitle = await uiPrompt('Title', nodeData.title || '');
+      if(newTitle == null) return;
+      const newText = await uiPrompt('Text', nodeData.text || '');
+      if(newText == null) return;
+      await update(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${node.id}`), { title: newTitle, text: newText, updatedAt: Date.now() });
+    });
+
+    // inline delete button
+    nodeEl.querySelector('.node-delete').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!await uiConfirm('Delete node?')) return;
+      await remove(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${node.id}`));
+      // also remove connections referencing this node
+      const conns = localState.projects[localState.selectedProjectId].flow.connections || {};
+      for(const cid of Object.keys(conns)){
+        const c = conns[cid];
+        if(c.source === node.id || c.target === node.id){
+          await remove(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/connections/${cid}`));
+        }
+      }
+      localState.selectedNodeId = null;
+    });
+
+    // make draggable (smooth using transform while dragging)
+    makeDraggable(nodeEl);
+
+    nodeEl.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      selectNode(node.id);
+    });
+
+    return nodeEl;
+  }
+
+  function makeDraggable(elm){
+    let offsetX=0,offsetY=0,dragging=false, startLeft=0, startTop=0;
+    const parentRect = ()=>canvasArea.getBoundingClientRect();
+
+    elm.addEventListener('pointerdown', (ev)=>{
+      // only start drag if pointer down not on a button/input
+      if(ev.target.closest('button') || ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA') return;
+      ev.preventDefault();
+      dragging=true; elm.classList.add('dragging');
+      startLeft = parseInt(elm.style.left||0,10); startTop = parseInt(elm.style.top||0,10);
+      const pr = parentRect();
+      offsetX = ev.clientX - (pr.left + startLeft);
+      offsetY = ev.clientY - (pr.top + startTop);
+      elm.setPointerCapture(ev.pointerId);
+    });
+
+    elm.addEventListener('pointermove', (ev)=>{
+      if(!dragging) return;
+      const pr = parentRect();
+      let nx = ev.clientX - pr.left - offsetX;
+      let ny = ev.clientY - pr.top - offsetY;
+      // allow wider movement by not constraining values and snapping to 4px grid
+      nx = Math.round(nx/4)*4; ny = Math.round(ny/4)*4;
+      const tx = nx - startLeft; const ty = ny - startTop;
+      elm.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
+      updateLinesForNode(elm.dataset.id, { live:true, tx, ty });
+    });
+
+    elm.addEventListener('pointerup', async (ev)=>{
+      if(!dragging) return;
+      dragging=false; elm.classList.remove('dragging');
+      try{ elm.releasePointerCapture(ev.pointerId); }catch(e){}
+      // compute final position from transform
+      const transform = elm.style.transform;
+      let tx=0, ty=0;
+      if(transform && transform.startsWith('translate3d')){
+        const parts = transform.match(/translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,/);
+        if(parts){ tx = parseFloat(parts[1]); ty = parseFloat(parts[2]); }
+      }
+      const finalLeft = (parseInt(elm.style.left||0,10) + Math.round(tx));
+      const finalTop = (parseInt(elm.style.top||0,10) + Math.round(ty));
+      // reset transform and set absolute coords
+      elm.style.transform = '';
+      elm.style.left = finalLeft + 'px'; elm.style.top = finalTop + 'px';
+      // save position to db
+      const id = elm.dataset.id;
+      await update(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${id}`), { x: finalLeft, y: finalTop, updatedAt: Date.now() });
+      updateLinesForNode(id);
+    });
+  }
+
+  function selectNode(nid){
+    localState.selectedNodeId = nid;
+    renderInspector();
+  }
+
+  function renderInspector(){
+    const cont = el('#inspectorContent'); cont.innerHTML='';
+    if(localState.selectedProjectId && !localState.selectedNodeId){
+      const p = localState.projects[localState.selectedProjectId];
+      const wrapper = create('div');
+      wrapper.innerHTML = `<div style="font-weight:700">${p.title}</div><div class="muted">Tags</div>`;
+      const tagsWrap = create('div');
+      for(const t of p.tags||[]) { const tg = create('span','tag'); tg.textContent = t; tagsWrap.appendChild(tg);} 
+      wrapper.appendChild(tagsWrap);
+      cont.appendChild(wrapper);
+      return;
+    }
+    if(localState.selectedNodeId){
+      const node = localState.projects[localState.selectedProjectId].flow.nodes[localState.selectedNodeId];
+      const wrapper = create('div');
+      wrapper.style.display='flex'; wrapper.style.flexDirection='column'; wrapper.style.gap='8px';
+
+      const titleLabel = create('label'); titleLabel.textContent='Title';
+      const titleInput = create('input'); titleInput.value = node.title||'';
+
+      const textLabel = create('label'); textLabel.textContent='Text';
+      const textArea = create('textarea'); textArea.rows=4; textArea.value = node.text||'';
+
+      const colorLabel = create('label'); colorLabel.textContent='Color';
+      const colorInput = create('input'); colorInput.type='color'; colorInput.value = node.color ? rgbToHex(node.color) : '#ffffff';
+
+      const actionsRow = create('div'); actionsRow.style.display='flex'; actionsRow.style.gap='8px';
+      const saveBtn = create('button'); saveBtn.className='btn'; saveBtn.textContent='Save Node';
+      saveBtn.onclick = async ()=>{
+        await update(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${node.id}`), { title: titleInput.value, text: textArea.value, color: colorInput.value, updatedAt: Date.now() });
+        await uiAlert('Node saved');
+      };
+      const delBtn = create('button'); delBtn.className='btn ghost'; delBtn.textContent='Delete Node';
+      delBtn.onclick = async ()=>{ if(await uiConfirm('Delete node?')){ await remove(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${node.id}`)); localState.selectedNodeId=null; }}
+      actionsRow.appendChild(saveBtn); actionsRow.appendChild(delBtn);
+
+      wrapper.appendChild(titleLabel); wrapper.appendChild(titleInput);
+      wrapper.appendChild(textLabel); wrapper.appendChild(textArea);
+      wrapper.appendChild(colorLabel); wrapper.appendChild(colorInput);
+      wrapper.appendChild(actionsRow);
+
+      // comments area with edit/delete for each comment
+      const commentsTitle = create('div'); commentsTitle.style.fontWeight='700'; commentsTitle.style.marginTop='6px'; commentsTitle.textContent = 'Comments';
+      const commentsWrap = create('div','comments');
+      const addRow = create('div'); addRow.style.display='flex'; addRow.style.gap='8px';
+      const newCommentInput = create('input'); newCommentInput.type='text'; newCommentInput.placeholder='Add a comment...';
+      const addBtn = create('button'); addBtn.className='btn'; addBtn.textContent='Add';
+      addBtn.onclick = async ()=>{
+        const v = newCommentInput.value.trim(); if(!v) return; const cRef = push(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${node.id}/comments`));
+        const cid = cRef.key; const comment = { id: cid, text: v, createdAt: Date.now() };
+        await set(cRef, comment);
+        newCommentInput.value='';
+      };
+      addRow.appendChild(newCommentInput); addRow.appendChild(addBtn);
+
+      // render existing comments with Edit + Delete
+      const commentsObj = node.comments || {};
+      for(const cid of Object.keys(commentsObj)){
+        const c = commentsObj[cid];
+        const row = create('div','comment-row');
+        row.style.display = 'flex'; row.style.alignItems='flex-start'; row.style.justifyContent='space-between';
+        const txtWrap = create('div'); txtWrap.style.flex='1';
+        const txt = create('div'); txt.textContent = c.text; txt.style.marginBottom='6px';
+        const meta = create('div'); meta.style.fontSize='11px'; meta.style.color='var(--muted)'; meta.textContent = new Date(c.createdAt).toLocaleString();
+        txtWrap.appendChild(txt); txtWrap.appendChild(meta);
+
+        const controls = create('div'); controls.style.display='flex'; controls.style.gap='6px';
+        const editBtn = create('button'); editBtn.className='btn ghost small'; editBtn.textContent='Edit';
+        editBtn.onclick = async ()=>{
+          const newText = await uiPrompt('Edit comment', c.text);
+          if(newText == null) return;
+          await update(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${node.id}/comments/${cid}`), { text: newText, updatedAt: Date.now() });
+        };
+        const del = create('button'); del.className='btn ghost small'; del.textContent='Delete';
+        del.onclick = async ()=>{ if(await uiConfirm('Delete comment?')){ await remove(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes/${node.id}/comments/${cid}`)); }}
+        controls.appendChild(editBtn); controls.appendChild(del);
+
+        row.appendChild(txtWrap); row.appendChild(controls);
+        commentsWrap.appendChild(row);
+      }
+
+      wrapper.appendChild(commentsTitle); wrapper.appendChild(commentsWrap); wrapper.appendChild(addRow);
+
+      cont.appendChild(wrapper);
+    }
+  }
+
+  // helper to convert rgb/hex to hex (if color saved as hex just pass through)
+  function rgbToHex(c){
+    try{ if(c.startsWith('#')) return c; return '#ffffff'; }catch(e){ return '#ffffff' }
+  }
+
+  // Add node button - place new node at the center of the visible viewport of canvasWrap
+  el('#btnAddNode').addEventListener('click', async ()=>{
+    if(!currentUser || !localState.selectedProjectId) return uiAlert('Open a project first');
+    // compute center position relative to canvasArea
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    const areaRect = canvasArea.getBoundingClientRect();
+    const scrollLeft = canvasWrap.scrollLeft || 0;
+    const scrollTop = canvasWrap.scrollTop || 0;
+    // center point in viewport
+    const centerX = (wrapRect.width / 2) + scrollLeft;
+    const centerY = (wrapRect.height / 2) + scrollTop;
+    const newRef = push(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/nodes`));
+    const nid = newRef.key;
+    const node = { id: nid, x: Math.max(20, Math.round(centerX - 80)), y: Math.max(20, Math.round(centerY - 24)), title: 'New Node', text: '', color: '#ffffff', createdAt: Date.now() };
+    await set(newRef, node);
+  });
+
+  // connect mode
+  el('#btnConnect').addEventListener('click', ()=>{
+    localState.isConnecting = !localState.isConnecting; localState.connectFrom = null;
+    el('#btnConnect').classList.toggle('active', localState.isConnecting);
+    el('#btnConnect').textContent = localState.isConnecting ? 'Connecting: click source' : 'Connect';
+  });
+
+  // click handling
+  canvasArea.addEventListener('click', ()=>{ localState.selectedNodeId=null; renderInspector(); });
+  canvasArea.addEventListener('pointerdown', (e)=>{
+    const nodeEl = e.target.closest('.node');
+    if(!nodeEl) return;
+    const nid = nodeEl.dataset.id;
+    if(localState.isConnecting){
+      if(!localState.connectFrom){ localState.connectFrom = nid; el('#btnConnect').textContent = 'Connecting: choose target'; }
+      else if(localState.connectFrom === nid){ uiAlert('Cannot connect to same node'); }
+      else { createConnection(localState.connectFrom, nid); localState.connectFrom = null; localState.isConnecting=false; el('#btnConnect').textContent='Connect'; }
+    }
+  });
+
+  async function createConnection(sourceId, targetId){
+    const connRef = push(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}/flow/connections`));
+    const id = connRef.key;
+    const connection = { id, source: sourceId, target: targetId, createdAt: Date.now() };
+    await set(connRef, connection);
+  }
+
+  // Draw connection (straight line between centers)
+  function drawConnection(conn){
+    const sEl = canvasArea.querySelector(`.node[data-id='${conn.source}']`);
+    const tEl = canvasArea.querySelector(`.node[data-id='${conn.target}']`);
+    if(!sEl || !tEl) return;
+    const sRect = sEl.getBoundingClientRect();
+    const tRect = tEl.getBoundingClientRect();
+    const parentRect = canvasArea.getBoundingClientRect();
+    const x1 = sRect.left + sRect.width/2 - parentRect.left;
+    const y1 = sRect.top + sRect.height/2 - parentRect.top;
+    const x2 = tRect.left + tRect.width/2 - parentRect.left;
+    const y2 = tRect.top + tRect.height/2 - parentRect.top;
+    let line = svgLines.querySelector(`line[data-id='${conn.id}']`);
+    if(!line){ line = document.createElementNS('http://www.w3.org/2000/svg','line'); line.setAttribute('stroke','var(--accent)'); line.setAttribute('stroke-width','2'); line.setAttribute('data-id', conn.id); svgLines.appendChild(line); }
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+  }
+
+  function updateLinesForNode(nid, opts={}){
+    const proj = localState.projects[localState.selectedProjectId];
+    if(!proj) return;
+    const conns = proj.flow.connections || {};
+    for(const cid of Object.keys(conns)){
+      const c = conns[cid];
+      if(c.source === nid || c.target === nid) drawConnection(c);
+    }
+  }
+
+  function renderAllConnections(){
+    const proj = localState.projects[localState.selectedProjectId]; if(!proj) return;
+    const conns = proj.flow.connections||{};
+    for(const cid of Object.keys(conns)) drawConnection(conns[cid]);
+  }
+
+  function redrawEverything(){ svgLines.innerHTML=''; renderAllConnections(); }
+
+  // watch selected project in DB
+  let projectListener = null;
+  function watchSelectedProject(){
+    if(projectListener) projectListener(); projectListener = null;
+    if(!currentUser || !localState.selectedProjectId) return;
+    const pRef = ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}`);
+    onValue(pRef, snap=>{
+      const val = snap.exists()?snap.val():null;
+      if(!val) return;
+      localState.projects[localState.selectedProjectId] = val;
+      renderProjectsList();
+      renderCanvasFromProject(val);
+      setTimeout(()=>{ redrawEverything(); }, 80);
+    });
+  }
+
+  // save project title via modal
+  el('#btnSave').addEventListener('click', async ()=>{
+    if(!currentUser || !localState.selectedProjectId) return;
+    const currentTitle = localState.projects[localState.selectedProjectId].title||'';
+    const newTitle = await uiPrompt('Set project title', currentTitle);
+    if(newTitle!=null) await update(ref(db, `users/${currentUser.uid}/projects/${localState.selectedProjectId}`), { title: newTitle, updatedAt: Date.now() });
+  });
+
+  window.addEventListener('resize', ()=>{ setTimeout(()=>redrawEverything(), 200); });
+
+  function resetCanvas(){ canvasArea.innerHTML=''; svgLines.innerHTML=''; }
+
+  // initial state: hide auth modal until user clicks sign in
+  hideModal('authRoot'); hideModal('uiModal');
+
+  console.log('Upgraded UI loaded — features: UI modals, node colors, comments per node, smooth dragging, added: inline node edit/delete, comment edit/delete, wider movable workspace, and toggle panels button.');
+</script>
+
+</body>
+</html>
