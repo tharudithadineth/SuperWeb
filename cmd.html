@@ -1,0 +1,349 @@
+<html>
+  <section id="terminal-interface">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- THEME COLORS --- */
+        :root {
+            --terminal-bg: #0A0A0A; 
+            --terminal-text: #FFFFFF; 
+            --terminal-accent: #888888; 
+            --terminal-border: #333333; 
+        }
+
+        #terminal-interface {
+            padding: 80px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .terminal-window {
+            width: 90%;
+            max-width: 800px;
+            background-color: var(--terminal-bg);
+            border: 1px solid var(--terminal-border);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+            border-radius: 6px;
+            overflow: hidden;
+            font-family: 'Inconsolata', monospace; 
+            color: var(--terminal-text); 
+            font-size: 1rem;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            background-color: #1A1A1A; 
+            border-bottom: 1px solid var(--terminal-border);
+        }
+
+        .terminal-header .dot {
+            width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; display: inline-block;
+        }
+        .dot.red { background-color: #ff5f56; }
+        .dot.yellow { background-color: #ffbd2e; }
+        .dot.green { background-color: #27c93f; }
+
+        .terminal-header .title {
+            flex-grow: 1; text-align: center; color: var(--terminal-accent); font-size: 0.9rem;
+        }
+
+        /* --- SCROLLING CONTAINER (Fixed Height) --- */
+        .terminal-body-output {
+            height: 300px; 
+            overflow-y: auto;
+            padding: 15px 15px 0 15px; 
+        }
+        .terminal-body-output::-webkit-scrollbar { width: 8px; }
+        .terminal-body-output::-webkit-scrollbar-thumb { background-color: #444444; border-radius: 4px; }
+        .terminal-body-output::-webkit-scrollbar-track { background: #1A1A1A; }
+        
+        .terminal-input-fixed {
+            padding: 0 15px 15px 15px;
+            background-color: var(--terminal-bg);
+        }
+
+        #output p { margin: 0; line-height: 1.4; white-space: pre-wrap; }
+
+        /* Input Styling */
+        .input-line {
+            display: flex; align-items: center; margin-top: 10px;
+        }
+
+        .prompt { margin-right: 5px; color: var(--terminal-accent); flex-shrink: 0; }
+
+        #command-input {
+            background: transparent;
+            border: none;
+            color: var(--terminal-text);
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            padding: 0;
+            flex-grow: 1;
+            caret-color: var(--terminal-text); 
+        }
+
+        /* Link styling for repo links */
+        #output a {
+            color: var(--terminal-text); 
+            text-decoration: underline;
+        }
+    </style>
+
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+            <span class="title">tharuditha-console.sh</span>
+        </div>
+        
+        <div class="terminal-body-output">
+            <div id="output"></div>
+        </div>
+        
+        <div class="terminal-input-fixed">
+            <div class="input-line">
+                <span class="prompt">guest@tharuditha.dev:~$</span>
+                <input type="text" id="command-input">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- ELEMENT TARGETS ---
+            const inputField = document.getElementById('command-input');
+            const outputDiv = document.getElementById('output');
+            const scrollableContainer = document.querySelector('.terminal-body-output'); 
+            
+            // --- CONFIG ---
+            const GITHUB_USERNAME = "tharudithadineth"; // Your GitHub username
+            const GITHUB_API_URL = `https://api.github.com/users/${GITHUB_USERNAME}/repos`;
+            const resumeLink = "link-to-your-resume.pdf"; 
+            
+            let repositories = {}; // This will hold the live fetched data
+            let commandHistory = [];
+            let historyIndex = -1;
+            let isRepoLoading = false;
+
+            // --- COMMAND DEFINITIONS ---
+            const commands = {
+                'help': `Available Commands:
+                - man: Detailed manual for all commands.
+                - map: View the page's functional map.
+                - projects: List main GitHub projects (live data).
+                - repo [name]: View and redirect to a specific repository.
+                - about, connect, resume: Standard info retrieval.
+                - reboot: Refresh the page.
+                - shutdown: Close the current tab.
+                - clear: Clear terminal output.`,
+
+                'man': `MANUAL PAGE (tharuditha.dev)
+                ... (content unchanged) ...`, // Man page content from previous response
+
+                'map': `PAGE MAP:
+                ... (content unchanged) ...`, // Map content from previous response
+
+                'about': `I'm Tharuditha, a design-minded developer passionate about building polished, purposeful, and uniquely crafted web experiences. My background is in Physical Science, bringing an analytical approach to every project.`,
+
+                'connect': `LinkedIn: [Your LinkedIn URL]\nGitHub: [Your GitHub URL]\nDiscord: tharu_dev#1234\nEmail: your.email@example.com`,
+            };
+
+            // --- Utility Function to Handle Scrolling and Focus ---
+            function scrollToBottom() {
+                scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
+                inputField.focus(); 
+            }
+
+            // --- Typing Animation Function ---
+            function typeOutput(text, callback) {
+                const p = document.createElement('p');
+                outputDiv.appendChild(p);
+                let i = 0;
+                const speed = 15;
+
+                function type() {
+                    if (i < text.length) {
+                        const char = (text.charAt(i) === '\n') ? '<br>' : text.charAt(i);
+                        p.innerHTML += char;
+                        i++;
+                        if (i % 5 === 0) scrollToBottom(); 
+                        setTimeout(type, speed);
+                    } else {
+                        if (callback) callback();
+                    }
+                }
+                type();
+            }
+
+            // --- API Fetch Function ---
+            async function fetchGitHubRepos() {
+                isRepoLoading = true;
+                typeOutput(`Fetching live repository data from GitHub API...`, scrollToBottom);
+                try {
+                    const response = await fetch(GITHUB_API_URL, {
+                        headers: {
+                            // Using conditional headers for better rate limiting, though not strictly required
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}. Too many requests?`);
+                    }
+
+                    const data = await response.json();
+                    
+                    data.forEach(repo => {
+                        // Use the repo name (lower-cased) as the command key
+                        repositories[repo.name.toLowerCase()] = {
+                            title: repo.name.replace(/-/g, ' '), // Nicer formatting for title
+                            description: repo.description || "No description provided.",
+                            url: repo.html_url,
+                            language: repo.language || 'N/A'
+                        };
+                    });
+                    typeOutput(`[ SUCCESS ] Found ${Object.keys(repositories).length} repositories.`, scrollToBottom);
+                } catch (error) {
+                    typeOutput(`[ ERROR ] Failed to load GitHub data: ${error.message}. Try again later.`, scrollToBottom);
+                } finally {
+                    isRepoLoading = false;
+                }
+            }
+            
+            // --- GitHub Projects List Output ---
+            function listProjects() {
+                if (isRepoLoading) {
+                    typeOutput('Repository data is still loading. Please wait...', scrollToBottom);
+                    return;
+                }
+                
+                const keys = Object.keys(repositories);
+                if (keys.length === 0) {
+                    typeOutput('No repositories found. Check connection or try \'reboot\'.', scrollToBottom);
+                    return;
+                }
+
+                let output = `Repository List (${keys.length} found):\n`;
+                
+                keys.forEach(key => {
+                    const repo = repositories[key];
+                    // Display the short command key, the title, and the main language
+                    output += `- ${key.padEnd(15)} : ${repo.title.substring(0, 40).padEnd(40)} [${repo.language}]\n`;
+                });
+                output += '\nUse \'repo [name]\' for details and redirection. Example: \'repo ' + keys[0] + '\'';
+                typeOutput(output, scrollToBottom);
+            }
+
+            // --- ADVANCED COMMAND HANDLER ---
+            function processCommand(command) {
+                const parts = command.toLowerCase().trim().split(' ');
+                const cmd = parts[0];
+                const arg = parts.slice(1).join(' ').trim();
+
+                // 1. Echo the command 
+                const echo = document.createElement('p');
+                echo.classList.add('prompt');
+                echo.innerHTML = `guest@tharuditha.dev:~$ ${command}`;
+                outputDiv.appendChild(echo);
+                scrollToBottom(); 
+
+                // Add to history
+                if (command.trim() !== "") {
+                    commandHistory.push(command);
+                    historyIndex = commandHistory.length;
+                }
+
+                // 2. Process commands
+                if (cmd === 'clear') {
+                    outputDiv.innerHTML = '';
+                    showWelcomeMessage(false);
+                } else if (cmd === 'reboot') {
+                    typeOutput(`System message: Rebooting console. Standby...`, () => window.location.reload());
+                } else if (cmd === 'shutdown') {
+                    typeOutput(`System message: Terminating connection. Goodbye.`, () => window.close());
+                } else if (cmd === 'resume') {
+                    window.open(resumeLink, '_blank');
+                    typeOutput(`Accessing secure file system... Opening resume.`, scrollToBottom);
+                } else if (cmd === 'projects') {
+                    listProjects();
+                } else if (cmd === 'repo') {
+                    if (isRepoLoading) {
+                        typeOutput('Repository data is still loading. Please wait...', scrollToBottom);
+                        return;
+                    }
+                    const repoKey = arg;
+                    const repo = repositories[repoKey];
+                    if (repo) {
+                        window.open(repo.url, '_blank');
+                        typeOutput(`Opening repository: ${repo.title}\nDescription: ${repo.description}\nLanguage: ${repo.language}\nURL: ${repo.url}`, scrollToBottom);
+                    } else {
+                        typeOutput(`Error: Repository '${repoKey}' not found. Type 'projects' to view the list.`, scrollToBottom);
+                    }
+                }
+                // 3. Process standard info commands
+                else if (commands[cmd]) {
+                    typeOutput(commands[cmd], scrollToBottom);
+                } 
+                // 4. Default error
+                else {
+                    typeOutput(`Error: Command '${command}' not recognized. Type 'help' or 'man'.`, scrollToBottom);
+                }
+            }
+
+            // --- Event Listener for Input Field ---
+            inputField.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); 
+                    const command = inputField.value;
+                    inputField.value = ''; 
+                    processCommand(command);
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (commandHistory.length === 0) return;
+
+                    if (e.key === 'ArrowUp' && historyIndex > 0) {
+                        historyIndex--;
+                    } else if (e.key === 'ArrowDown' && historyIndex < commandHistory.length) {
+                        historyIndex++;
+                    }
+
+                    if (historyIndex < commandHistory.length) {
+                        inputField.value = commandHistory[historyIndex] || '';
+                    } else {
+                        inputField.value = '';
+                    }
+                    scrollToBottom();
+                }
+            });
+
+            // --- Initial Boot Sequence ---
+            function showWelcomeMessage(animate = true) {
+                const welcomeText = `Console booted. Initiating secure session...
+                [ OK ] System Check complete.
+                Type 'help' for basic commands or 'man' for the manual.`;
+                
+                if (animate) {
+                    typeOutput(welcomeText, () => {
+                        // After the welcome message, fetch the GitHub data
+                        fetchGitHubRepos();
+                        scrollToBottom();
+                    });
+                } else {
+                    outputDiv.innerHTML = `<p>${welcomeText.replace(/\n/g, '<br>')}</p>`;
+                    scrollToBottom();
+                }
+            }
+
+            // Initialization
+            showWelcomeMessage(); 
+            inputField.focus();
+        });
+    </script>
+</section>
+</html>
